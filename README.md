@@ -16,7 +16,7 @@
 
 
 ### Contributing
-* []() Make a fork and starting pushing and report me on discord to check it.
+* []() Make a fork and starting pushing and report me on discord to check it. Discord: BlueSkyWestSide#1162
 
 
 ## Authors
