@@ -21,7 +21,7 @@
 
 ## Authors
 
-* **xan1242** - *Autor of original tool.* - [xan1242](https://github.com/xan1242/MPFmaster) - *
+* **xan1242** - *Autor of original tool.* - [xan1242](https://github.com/xan1242/MPFmaster) 
 
 * **Hickle** - *Helping with tool.*
 
