@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Text;
 
 namespace PathFinderTool
 {
@@ -7,7 +8,7 @@ namespace PathFinderTool
     {
         struct PATHFINDHEADER
         {
-            public int id;
+            public byte[] id;
             public byte majorRev;
             public byte minorRev;
             public byte release;
@@ -53,9 +54,8 @@ namespace PathFinderTool
 
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
 
-            string filePath = args[0]; // Replace this with your file path
+            string filePath = args[0];
 
             try
             {
@@ -64,7 +64,8 @@ namespace PathFinderTool
                     PATHFINDHEADER header = new PATHFINDHEADER();
 
                     // Read the structure fields sequentially
-                    header.id = reader.ReadInt32();
+                    header.id = reader.ReadBytes(4);
+                    string stringValue = Encoding.ASCII.GetString(header.id);
                     header.majorRev = reader.ReadByte();
                     header.minorRev = reader.ReadByte();
                     header.release = reader.ReadByte();
@@ -93,7 +94,7 @@ namespace PathFinderTool
                     Console.WriteLine("# Version info");
                     Console.WriteLine("#------------------------------------------------------------------------");
 
-                    Console.WriteLine("id: " + header.id);
+                    Console.WriteLine("id: " + stringValue);
                     Console.WriteLine("majorRev: " + header.majorRev);
                     Console.WriteLine("minorRev: " + header.minorRev);
                     Console.WriteLine("release: " + header.release);
@@ -123,11 +124,6 @@ namespace PathFinderTool
                     {
                         header.v40reserve[i] = reader.ReadUInt32();
                     }
-
-                    // Use the data from the structure as needed
-                    Console.WriteLine("ID: " + header.id);
-                    Console.WriteLine("Num Tracks: " + header.numtracks);
-                    // Print other fields as needed
                 }
             }
             catch (Exception e)
