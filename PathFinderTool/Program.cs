@@ -54,6 +54,7 @@ namespace PathFinderTool
 
         static void Main(string[] args)
         {
+            Console.Title = "PathFinderTool";
 
             string filePath = args[0];
 
@@ -94,30 +95,30 @@ namespace PathFinderTool
                     Console.WriteLine("# Version info");
                     Console.WriteLine("#------------------------------------------------------------------------");
 
-                    Console.WriteLine("id: " + stringValue);
-                    Console.WriteLine("majorRev: " + header.majorRev);
-                    Console.WriteLine("minorRev: " + header.minorRev);
-                    Console.WriteLine("release: " + header.release);
-                    Console.WriteLine("prerelease: " + header.prerelease);
-                    Console.WriteLine("saveIncrement: " + header.saveIncrement);
-                    Console.WriteLine("generateID: " + header.generateID);
-                    Console.WriteLine("projectID: " + header.projectID);
-                    Console.WriteLine("numtracks: " + header.numtracks);
-                    Console.WriteLine("numsections: " + header.numsections);
-                    Console.WriteLine("numevents: " + header.numevents);
-                    Console.WriteLine("numrouters: " + header.numrouters);
-                    Console.WriteLine("numnamedvars: " + header.numnamedvars);
-                    Console.WriteLine("numnodes: " + header.numnodes);
-                    Console.WriteLine("nodeoffsets: " + header.nodeoffsets);
-                    Console.WriteLine("nodedata: " + header.nodedata);
-                    Console.WriteLine("eventoffsets: " + header.eventoffsets);
-                    Console.WriteLine("eventdata: " + header.eventdata);
-                    Console.WriteLine("namedvars: " + header.namedvars);
-                    Console.WriteLine("noderouters: " + header.noderouters);
-                    Console.WriteLine("trackoffsets: " + header.trackoffsets);
-                    Console.WriteLine("trackinfos: " + header.trackinfos);
-                    Console.WriteLine("sampleoffsets: " + header.sampleoffsets);
-                    Console.WriteLine("mapfilelen: " + header.mapfilelen);
+                    Console.WriteLine("MPFID: " + stringValue);
+                    Console.WriteLine("MajorRev: " + header.majorRev);
+                    Console.WriteLine("MinorRev: " + header.minorRev);
+                    Console.WriteLine("Release: " + header.release);
+                    Console.WriteLine("Prerelease: " + header.prerelease);
+                    Console.WriteLine("SaveIncrement: " + header.saveIncrement);
+                    Console.WriteLine("GenerateID: " + header.generateID);
+                    Console.WriteLine("ProjectID: " + header.projectID);
+                    Console.WriteLine("Numtracks: " + header.numtracks);
+                    Console.WriteLine("NumSections: " + header.numsections);
+                    Console.WriteLine("NumEvents: " + header.numevents);
+                    Console.WriteLine("NumRouters: " + header.numrouters);
+                    Console.WriteLine("NumNamedvars: " + header.numnamedvars);
+                    Console.WriteLine("NumNodes: " + header.numnodes);
+                    Console.WriteLine("NodeOffsets: " + header.nodeoffsets);
+                    Console.WriteLine("NodeData: " + header.nodedata);
+                    Console.WriteLine("EventOffsets: " + header.eventoffsets);
+                    Console.WriteLine("EventData: " + header.eventdata);
+                    Console.WriteLine("NamedVars: " + header.namedvars);
+                    Console.WriteLine("NodeRouters: " + header.noderouters);
+                    Console.WriteLine("TrackOffsets: " + header.trackoffsets);
+                    Console.WriteLine("TrackInfos: " + header.trackinfos);
+                    Console.WriteLine("SampleOffsets: " + header.sampleoffsets);
+                    Console.WriteLine("Mapfilelen: " + header.mapfilelen);
 
                     header.v40reserve = new uint[3];
                     for (int i = 0; i < 3; i++)
