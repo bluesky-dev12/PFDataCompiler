@@ -64,7 +64,7 @@ namespace PathFinderTool
                 {
                     PATHFINDHEADER header = new PATHFINDHEADER();
 
-                    // Read the structure fields sequentially
+                    // Read the structure fields sequentially -> size 0x48
                     header.id = reader.ReadBytes(4);
                     string stringValue = Encoding.ASCII.GetString(header.id);
                     header.majorRev = reader.ReadByte();

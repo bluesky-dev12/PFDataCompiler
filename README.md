@@ -32,3 +32,4 @@
 * []() Compile MPF and Mus.
 * []() Generate eventIDs with music names to txt.
 * []() Make it playable in game.
+* []() Make gui and make more easy to work it.
