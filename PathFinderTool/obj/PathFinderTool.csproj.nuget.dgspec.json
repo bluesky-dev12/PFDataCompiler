@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\NFSURemake\\GitTools\\PathFinder_Tool\\PathFinderTool\\PathFinderTool\\PathFinderTool.csproj": {}
+    "D:\\NFSURemake\\GitTools\\PathFinder_Tool\\PathFinderTool\\PathFinder\\PathFinderTool\\PathFinderTool.csproj": {}
   },
   "projects": {
-    "D:\\NFSURemake\\GitTools\\PathFinder_Tool\\PathFinderTool\\PathFinderTool\\PathFinderTool.csproj": {
+    "D:\\NFSURemake\\GitTools\\PathFinder_Tool\\PathFinderTool\\PathFinder\\PathFinderTool\\PathFinderTool.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\NFSURemake\\GitTools\\PathFinder_Tool\\PathFinderTool\\PathFinderTool\\PathFinderTool.csproj",
+        "projectUniqueName": "D:\\NFSURemake\\GitTools\\PathFinder_Tool\\PathFinderTool\\PathFinder\\PathFinderTool\\PathFinderTool.csproj",
         "projectName": "PathFinderTool",
-        "projectPath": "D:\\NFSURemake\\GitTools\\PathFinder_Tool\\PathFinderTool\\PathFinderTool\\PathFinderTool.csproj",
+        "projectPath": "D:\\NFSURemake\\GitTools\\PathFinder_Tool\\PathFinderTool\\PathFinder\\PathFinderTool\\PathFinderTool.csproj",
         "packagesPath": "C:\\Users\\migue\\.nuget\\packages\\",
-        "outputPath": "D:\\NFSURemake\\GitTools\\PathFinder_Tool\\PathFinderTool\\PathFinderTool\\obj\\",
+        "outputPath": "D:\\NFSURemake\\GitTools\\PathFinder_Tool\\PathFinderTool\\PathFinder\\PathFinderTool\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "D:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
