@@ -36,3 +36,4 @@ PathFinderTool/obj/Debug/net8.0/PathFinderTool.AssemblyInfoInputs.cache
 .vs/PathFinderTool/FileContentIndex/73017823-f07e-4df7-8316-1604f28d04b2.vsidx
 PathFinderTool/obj/Debug/net8.0/PathFinderTool.AssemblyInfoInputs.cache
 PathFinderTool/obj/Debug/net8.0/PathFinderTool.AssemblyInfo.cs
+*.cache
