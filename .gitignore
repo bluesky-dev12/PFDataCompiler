@@ -37,3 +37,5 @@ PathFinderTool/obj/Debug/net8.0/PathFinderTool.AssemblyInfoInputs.cache
 PathFinderTool/obj/Debug/net8.0/PathFinderTool.AssemblyInfoInputs.cache
 PathFinderTool/obj/Debug/net8.0/PathFinderTool.AssemblyInfo.cs
 *.cache
+PathFinderTool/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs
+PathFinderTool/obj/Debug/net8.0/PathFinderTool.GlobalUsings.g.cs

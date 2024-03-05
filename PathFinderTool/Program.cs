@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Reflection.PortableExecutable;
 using System.Text;
 
 namespace PathFinderTool
@@ -91,6 +92,38 @@ namespace PathFinderTool
                     header.sampleoffsets = reader.ReadUInt32();
                     header.mapfilelen = reader.ReadUInt32();
 
+                    // Create a FileStream to write the binary data
+                    using (FileStream fileStream = new FileStream("output.bin", FileMode.Create))
+                    {
+                        BinaryWriter writer = new BinaryWriter(fileStream);
+
+                        // Write header fields to the file
+                        writer.Write((byte[])header.id);
+                        writer.Write((byte)header.majorRev);
+                        writer.Write((byte)header.minorRev);
+                        writer.Write((byte)header.release);
+                        writer.Write((byte)header.prerelease);
+                        writer.Write((ushort)header.saveIncrement);
+                        writer.Write((ushort)header.generateID);
+                        writer.Write((byte)header.projectID);
+                        writer.Write((byte)header.numtracks);
+                        writer.Write((byte)header.numsections);
+                        writer.Write((byte)header.numevents);
+                        writer.Write((byte)header.numrouters);
+                        writer.Write((byte)header.numnamedvars);
+                        writer.Write((ushort)header.numnodes);
+                        writer.Write((uint)header.nodeoffsets);
+                        writer.Write((uint)header.nodedata);
+                        writer.Write((uint)header.eventoffsets);
+                        writer.Write((uint)header.eventdata);
+                        writer.Write((uint)header.namedvars);
+                        writer.Write((uint)header.noderouters);
+                        writer.Write((uint)header.trackoffsets);
+                        writer.Write((uint)header.trackinfos);
+                        writer.Write((uint)header.sampleoffsets);
+                        writer.Write((uint)header.mapfilelen);
+                    }
+
                     Console.WriteLine("#------------------------------------------------------------------------");
                     Console.WriteLine("# Version info");
                     Console.WriteLine("#------------------------------------------------------------------------");
@@ -126,6 +159,7 @@ namespace PathFinderTool
                         header.v40reserve[i] = reader.ReadUInt32();
                     }
                 }
+
             }
             catch (Exception e)
             {
