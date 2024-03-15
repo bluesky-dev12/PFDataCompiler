@@ -29,10 +29,10 @@
 
 ## RoadMap
 
-* []() Compile MPF and Mus. - DONE
-* []() Generate eventIDs. - Done
-* []() Make it playable in game. - Done
-* []() Work code.
+* []() Compile MPF and Mus. - Done.
+* []() Generate eventIDs. - Done.
+* []() Make it playable in game. - Done.
+* []() Work the code.
 * []() Added support for MostWanted and give options for each game.
 * []() Generate NFSMS files with path ids for every change.
 * []() Make gui and make more easy to work it.
