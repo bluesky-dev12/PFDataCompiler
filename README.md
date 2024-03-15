@@ -27,6 +27,12 @@
 
 * **BlueSkyWestSide** - *Fixes for making it compile.*
 
+* **Nicknine** - *For (mpf2txt.py / mpftotext.py)*
+
+* **pasta**  - *For MPF Tutorial for reformed.*
+
+* **Nicknine** - *For (mpf2txt.py / mpftotext.py)*
+
 ## RoadMap
 
 * []() Compile MPF and Mus. - Done.
