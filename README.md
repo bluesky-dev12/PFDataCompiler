@@ -29,7 +29,7 @@
 
 * **Nicknine** - *For (mpf2txt.py / mpftotext.py)*
 
-* **pasta**  - *For MPF Tutorial for reformed.*
+* **Pasta**  - *For MPF Tutorial for reformed.*
 
 * **Nicknine** - *For (mpf2txt.py / mpftotext.py)*
 
