@@ -33,6 +33,8 @@
 
 * **Nicknine** - *For (mpf2txt.py / mpftotext.py)*
 
+* **Shad** - *For helping simplify the tutorial.*
+
 ## RoadMap
 
 * []() Compile MPF and Mus. - Done.
