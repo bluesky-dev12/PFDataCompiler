@@ -1160,7 +1160,7 @@ uint32_t read_patch(void* sf, off_t* offset) {
 }
 
 // code snippets from VGMStream: https://github.com/vgmstream/vgmstream/blob/50a11404e8b6949af6cc6572a99f8327842bf923/src/meta/ea_schl.c#L1557
-uint32_t GetSampleMSLength_GSTR(void* in)
+uint32_t GetSampleMSLength_PT(void* in)
 {
     void* sf = NULL;
     off_t offset = 0;
@@ -1308,7 +1308,420 @@ uint32_t GetSampleMSLength_GSTR(void* in)
     return msLength;
 }
 
-int MPF_UpdateSamples(char* mpffilename, char* samplefolder)
+uint32_t GetSampleMSLength_GSTR(void* in)
+{
+    void* sf = NULL;
+    off_t offset = 0;
+    size_t size = *(uint32_t*)((size_t)in + 4);
+    bool is_header_end = false;
+
+    // first search for GSTR
+    size_t searchoff = size;
+    int cursor = 0;
+    while (searchoff)
+    {
+        if (*(uint32_t*)((size_t)in + cursor) == EA_GSTR_MAGIC)
+        {
+            break;
+        }
+        searchoff--;
+        cursor++;
+    }
+
+    sf = (void*)((size_t)in + cursor + 8);
+
+    uint32_t sample_rate = 0;
+    uint32_t num_samples = 0;
+
+    bool bFoundRate = 0;
+    bool bFoundNum = 0;
+
+    while (!is_header_end && offset < size) {
+
+        if (bFoundRate && bFoundNum)
+            break;
+
+        uint8_t patch_type = *(uint8_t*)((size_t)sf + offset);
+        offset++;
+
+        switch (patch_type) {
+        case 0x00:
+            if (!is_header_end)
+                read_patch(sf, &offset);
+            break;
+        case 0x03:
+        case 0x04:
+        case 0x05:
+        case 0x06:
+        case 0x07:
+        case 0x08:
+        case 0x09:
+        case 0x0A:
+        case 0x0B:
+        case 0x0C:
+        case 0x0D:
+        case 0x0E:
+        case 0x0F:
+        case 0x10:
+        case 0x11:
+        case 0x12:
+        case 0x13:
+        case 0x14:
+        case 0x15:
+        case 0x19:
+        case 0x1B:
+        case 0x1C:
+        case 0x1D:
+        case 0x1E:
+        case 0x1F:
+        case 0x20:
+        case 0x21:
+        case 0x22:
+        case 0x23:
+        case 0x24:
+        case 0x25:
+        case 0xFC:
+        case 0x83:
+        case 0xA0:
+        case 0x80:
+        case 0x81:
+        case 0x82:
+        case 0x86:
+        case 0x87:
+        case 0x88:
+        case 0x89:
+        case 0x94:
+        case 0x95:
+        case 0xA2:
+        case 0xA3:
+        case 0x8F:
+        case 0x90:
+        case 0x91:
+        case 0xAB:
+        case 0xAC:
+        case 0xAD:
+        case 0x1A:
+        case 0x26:
+        case 0x27:
+        case 0x28:
+        case 0x29:
+        case 0x2a:
+        case 0x8C:
+        case 0x8A:
+        case 0x8B:
+        case 0x8D:
+        case 0x8E:
+        case 0x92:
+        case 0x93:
+        case 0x98:
+        case 0x99:
+        case 0x9C:
+        case 0x9D:
+        case 0x9E:
+        case 0x9F:
+        case 0xA6:
+        case 0xA7:
+        case 0xA1:
+            read_patch(sf, &offset);
+            break;
+
+        case 0x84:
+            sample_rate = read_patch(sf, &offset);
+            bFoundRate = true;
+            break;
+
+        case 0x85:
+            num_samples = read_patch(sf, &offset);
+            bFoundNum = true;
+            break;
+
+        case 0xFF:
+        case 0xFE:
+            is_header_end = 1;
+            break;
+
+        case 0xFD:
+        default:
+            break;
+        }
+    }
+
+    if ((num_samples == 0) || sample_rate == 0)
+        return 0;
+
+    long long unsigned int msLength = (num_samples * 1000) / sample_rate;
+    return msLength;
+}
+
+int MPF_UpdateSamplesMW(char* mpffilename, char* samplefolder)
+{
+    FILE* f = fopen(mpffilename, "rb");
+    if (!f)
+    {
+        cout << "Can't open file " << mpffilename << " for reading: " << strerror(errno) << '\n';
+        return -1;
+    }
+
+    // rip the mpf data out and omit the sample offsets
+    fread(&hdr, sizeof(PATHFINDHEADER), 1, f);
+    fseek(f, 0, SEEK_SET);
+    void* mpfdata = malloc(hdr.sampleoffsets);
+    fread(mpfdata, hdr.sampleoffsets, 1, f);
+
+    // get the track infos
+    fseek(f, hdr.trackoffsets, SEEK_SET);
+    for (int i = 0; ftell(f) < hdr.trackinfos; i++)
+    {
+        uint32_t offset = 0;
+        fread(&offset, sizeof(uint32_t), 1, f);
+        offset *= 4;
+        trackinfoOffsets.push_back(offset);
+    }
+    for (int i = 0; i < trackinfoOffsets.size(); i++)
+    {
+        PATHTRACKINFO trackinfo = { 0 };
+        fseek(f, trackinfoOffsets.at(i), SEEK_SET);
+        fread(&trackinfo, sizeof(PATHTRACKINFO), 1, f);
+        trackinfos.push_back(trackinfo);
+    }
+    fclose(f);
+
+    // parse the folder
+    GetDirectoryListing(samplefolder);
+
+    int LastSampleFile = GetHighestSampleNumName();
+    if (LastSampleFile < 0)
+        return -1;
+
+    // sanity check before proceeding with repacking
+    for (int t = 0; t < trackinfos.size(); t++)
+    {
+        if (LastSampleFile < trackinfos.at(t).startingsample)
+        {
+            cout << "ERROR: Can't update samples for track " << t << '\n';
+            cout << "Last sample file is lower than the starting sample! Check if all files are in the folder.\n";
+            return -1;
+        }
+    }
+
+    for (int t = 0; t < trackinfos.size(); t++)
+    {
+        int starting_sample = trackinfos.at(t).startingsample;
+        int last_sample = LastSampleFile;
+        EAL3HeaderInfos.clear();
+
+        if (t != trackinfos.size() - 1)
+            last_sample = trackinfos.at(t + 1).startingsample;
+        int sample_count = last_sample - starting_sample;
+        int hc = 0;
+
+        strcpy(MusFilePath, mpffilename);
+        char* extpoint = strrchr(MusFilePath, '.');
+        char numext[16];
+        if (trackinfos.size() > 1)
+        {
+            sprintf(numext, "_%d.mus", t);
+            if (extpoint)
+                strcpy(extpoint, numext);
+            else
+                strcat(MusFilePath, numext);
+        }
+        else
+        {
+            if (extpoint)
+                strcpy(extpoint, ".mus");
+            else
+                strcat(MusFilePath, ".mus");
+        }
+
+        FILE* fmus = fopen(MusFilePath, "wb");
+        if (!fmus)
+        {
+            cout << "Can't open file " << MusFilePath << " for writing: " << strerror(errno) << '\n';
+            return -1;
+        }
+
+        FILE* fsamp = NULL;
+        char sampname[32];
+        void* sampdata;
+        struct stat st = { 0 };
+
+        // write the checksum
+        fwrite(&(trackinfos.at(t).muschecksum), sizeof(uint32_t), 1, fmus);
+
+        // space for header infos
+        if (bEALayer3Mode)
+        {
+            fseek(fmus, 4, SEEK_SET);
+            fwrite(&sample_count, sizeof(uint32_t), 1, fmus);
+            fseek(fmus, 0x28, SEEK_SET);
+
+            size_t headers_size = sizeof(MUSHeaderInfo) * sample_count;
+            fseek(fmus, 0x28 + headers_size, SEEK_SET);
+
+            for (int i = starting_sample; i < last_sample; i++)
+            {
+                MUSHeaderInfo hi = { 0 };
+                hi.index = hc;
+                hi.hash = 0xDEADBEEF;
+
+                // align by 0x10 bytes
+                size_t mus_offset = ftell(fmus);
+                if (mus_offset % 0x10)
+                    mus_offset = mus_offset - (mus_offset % 0x10) + 0x10;
+
+                hi.HeaderOffset = mus_offset / 0x10;
+                fseek(fmus, mus_offset, SEEK_SET);
+
+                sprintf(sampname, "%s%s%d%s", samplefolder, path_separator, i + 1, SNR_FILE_EXT);
+
+                cout << "Reading: " << sampname << '\n';
+                fsamp = fopen(sampname, "rb");
+                if (!fsamp)
+                {
+                    cout << "Can't open file " << sampname << " for reading: " << strerror(errno) << '\n';
+                    if (fmus)
+                        fclose(fmus);
+                    return -1;
+                }
+
+                stat(sampname, &st);
+                hi.HeaderSize = st.st_size;
+
+                EAL3HeaderInfos.push_back(hi);
+
+                sampdata = malloc(st.st_size);
+                fread(sampdata, st.st_size, 1, fsamp);
+                fwrite(sampdata, st.st_size, 1, fmus);
+
+                // while here, get the sample length
+                // credit: VGMStream: https://github.com/vgmstream/vgmstream/blob/master/src/meta/ea_eaac.c#L1155
+                uint32_t header1 = bswap_32(*(uint32_t*)(sampdata));
+                uint32_t header2 = bswap_32(*(uint32_t*)((size_t)sampdata + sizeof(uint32_t)));
+
+                uint32_t sample_rate = (header1 >> 0) & 0x03FFFF;
+                uint32_t num_samples = (header2 >> 0) & 0x1FFFFFFF;
+                long long unsigned int length_ms = (num_samples * 1000) / sample_rate;
+                sampleLengths.push_back(length_ms);
+
+                free(sampdata);
+
+                fclose(fsamp);
+                hc++;
+            }
+        }
+
+        if (bEALayer3Mode)
+        {
+            // get the aram size
+            trackinfos.at(t).maxaram = ftell(fmus);
+            // align by 0x10 bytes
+            if (trackinfos.at(t).maxaram % 0x10)
+                trackinfos.at(t).maxaram = trackinfos.at(t).maxaram - (trackinfos.at(t).maxaram % 0x10) + 0x10;
+        }
+
+        for (int i = starting_sample; i < last_sample; i++)
+        {
+            // align by 0x80 bytes
+            size_t mus_offset = ftell(fmus);
+            if (mus_offset % 0x80)
+                mus_offset = mus_offset - (mus_offset % 0x80) + 0x80;
+            fseek(fmus, mus_offset, SEEK_SET);
+
+            sampleOffsets.push_back(mus_offset / 0x80);
+            if (bEALayer3Mode)
+            {
+                sprintf(sampname, "%s%s%d%s", samplefolder, path_separator, i + 1, SNS_FILE_EXT);
+                EAL3HeaderInfos.at(i - starting_sample).DataOffset = mus_offset / 0x80;
+            }
+            else
+                sprintf(sampname, "%s%s%d%s", samplefolder, path_separator, i + 1, ASF_FILE_EXT);
+
+            cout << "Reading: " << sampname << '\n';
+
+            fsamp = fopen(sampname, "rb");
+            if (!fsamp)
+            {
+                cout << "Can't open file " << sampname << " for reading: " << strerror(errno) << '\n';
+                if (fmus)
+                    fclose(fmus);
+                return -1;
+            }
+            stat(sampname, &st);
+
+            if (bEALayer3Mode)
+                EAL3HeaderInfos.at(i - starting_sample).DataSize = st.st_size;
+
+            sampdata = malloc(st.st_size);
+            fread(sampdata, st.st_size, 1, fsamp);
+            fwrite(sampdata, st.st_size, 1, fmus);
+
+            // get sample length for GSTR
+            uint32_t magic = *(uint32_t*)sampdata;
+            if ((magic == EA_SCHL_MAGIC) && !bEALayer3Mode)
+            {
+                sampleLengths.push_back(GetSampleMSLength_GSTR(sampdata));
+            }
+
+            free(sampdata);
+
+            fclose(fsamp);
+        }
+
+        // go back and write the infos...
+        if (bEALayer3Mode)
+        {
+            fseek(fmus, 0x28, SEEK_SET);
+            for (int i = 0; i < hc; i++)
+            {
+                fwrite(&(EAL3HeaderInfos.at(i)), sizeof(MUSHeaderInfo), 1, fmus);
+            }
+        }
+
+        fclose(fmus);
+    }
+
+    // re-generate MPF with new offsets
+    cout << "Updating: " << mpffilename << '\n';
+    f = fopen(mpffilename, "wb");
+    if (!f)
+    {
+        cout << "Can't open file " << mpffilename << " for writing: " << strerror(errno) << '\n';
+        return -1;
+    }
+
+    fwrite(mpfdata, hdr.sampleoffsets, 1, f);
+
+
+    for (int i = 0; i < LastSampleFile; i++)
+    {
+        PATHFINDSAMPLE sample = { 0 };
+        sample.offset = sampleOffsets.at(i);
+        sample.duration = sampleLengths.at(i);
+        fwrite(&(sample), sizeof(PATHFINDSAMPLE), 1, f);
+    }
+
+    // update the map file size
+    uint32_t mapsize = ftell(f);
+    fseek(f, 0x38, SEEK_SET);
+    fwrite(&mapsize, sizeof(uint32_t), 1, f);
+
+    if (bEALayer3Mode)
+    {
+        // update aram sizes
+        for (int i = 0; i < trackinfoOffsets.size(); i++)
+        {
+            fseek(f, trackinfoOffsets.at(i), SEEK_SET);
+            fwrite(&(trackinfos.at(i)), sizeof(PATHTRACKINFO), 1, f);
+        }
+    }
+
+    free(mpfdata);
+    fclose(f);
+    return 0;
+}
+
+int MPF_UpdateSamplesCarbon(char* mpffilename, char* samplefolder)
 {
     FILE* f = fopen(mpffilename, "rb");
     if (!f)
@@ -1515,7 +1928,7 @@ int MPF_UpdateSamples(char* mpffilename, char* samplefolder)
             uint32_t magic = *(uint32_t*)sampdata;
             if ((magic == EA_SCHL_MAGIC) && !bEALayer3Mode)
             {
-                sampleLengths.push_back(GetSampleMSLength_GSTR(sampdata));
+                sampleLengths.push_back(GetSampleMSLength_PT(sampdata));
             }
     
             free(sampdata);
@@ -3380,7 +3793,8 @@ int main(int argc, char* argv[])
             << "USAGE (compile TXT to MPF): " << argv[0] << " -c source [MPFout]\n"\
             << "USAGE (extract by sample num): " << argv[0] << " -s MPFfile MusTrackFile SampleNumber [OutSampleFile]\n"\
             << "USAGE (extract all samples): " << argv[0] << " -sa MPFfile MusTrackFile [OutSampleFolder]\n"\
-            << "USAGE (update samples): " << argv[0] << " -su MPFfile SampleFolder\n"\
+            << "USAGE (update samples_c): " << argv[0] << " -c MPFfile SampleFolder\n"\
+            << "USAGE (update samples_mw): " << argv[0] << " -mw MPFfile SampleFolder\n"\
             << "\n"\
             << "For sample updating, the MUS file will be generated with the name of the MPF and placed next to it. You MUST have all files from the lowest to highest number!\n"\
             << "If you omit the optional [out] name, it'll inherit the name of the input file.\n"\
@@ -3434,18 +3848,31 @@ int main(int argc, char* argv[])
         }
 
         // update samples in MPF
-        if (argv[1][2] == 'u')
+        if (argv[1][2] == 'x')
         {
             if (argc < 4)
             {
                 cout << "ERROR: not enough arguments for sample updating!\n"\
-                     << "USAGE (update samples): " << argv[0] << " -su MPFfile SampleFolder\n";
+                     << "USAGE (update samples): " << argv[0] << " -C MPFfile SampleFolder\n";
                 return -1;
             }
 
             cout << "Updating samples in: " << argv[argc - 1] << '\n';
 
-            return MPF_UpdateSamples(argv[2], argv[argc - 1]);
+            return MPF_UpdateSamplesCarbon(argv[2], argv[argc - 1]);
+        }
+        if (argv[1][2] == 'm')
+        {
+            if (argc < 4)
+            {
+                cout << "ERROR: not enough arguments for sample updating!\n"\
+                    << "USAGE (update samples): " << argv[0] << " -MW MPFfile SampleFolder\n";
+                return -1;
+            }
+
+            cout << "Updating samples in: " << argv[argc - 1] << '\n';
+
+            return MPF_UpdateSamplesMW(argv[2], argv[argc - 1]);
         }
 
         // sample by index
