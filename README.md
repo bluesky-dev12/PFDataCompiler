@@ -1,7 +1,7 @@
 <br/>
 <p align="center">
   <a href="https://github.com/bluesky-dev12/PFDataCompiler">
-    <img src="https://icons.iconarchive.com/icons/3xhumed/mega-games-pack-30/256/Need-for-Speed-Carbon-new-1-icon.png" alt="Logo" width="80" height="80">
+    <img src="https://raw.githubusercontent.com/bluesky-dev12/PFDataCompiler/main/Logo.png" alt="Logo" width="80" height="80">
   </a>
 
   <h3 align="center">PFData compiler for NFS Carbon</h3>
