@@ -39,6 +39,7 @@ vector<uint32_t> nodeOffsets;
 vector<uint32_t> eventOffsets;
 vector<uint32_t> routerOffsets;
 vector<uint32_t> trackinfoOffsets;
+vector<uint32_t> sampleSizes;
 vector<uint32_t> sampleOffsets;
 vector<uint32_t> sampleLengths;
 vector<PATHTRACKINFO> trackinfos;
@@ -728,8 +729,7 @@ int MPFtoTXT(char* mpffilename, char* txtfilename)
                 auto sectionID = action.sectionID;
 
                 fprintf(fout, "(0x%X, %d)", action.track, sectionID);
-                //if (track > 0)
-                  //  track--;
+
 
                 if ((action.type == PATHACTION_CONDITION) && (action.assess > PATHASSESS_IF))
                     indent -= 1;
@@ -760,9 +760,6 @@ int MPFtoTXT(char* mpffilename, char* txtfilename)
                     break;
                 case PATHACTION_BRANCHTO:
                     fprintf(fout, "\t\tBranch %s (%d, %d)\n", actValToString((*act).branch.node, action.leftvaluetype), (*act).branch.ofsection, (*act).branch.immediate);
-                    //if ((*act).branch.immediate)
-                    //    fputs(" Immediate", fout);
-                    //fputs("\n", fout);
                     break;
                 case PATHACTION_FADE:
                     fprintf(fout, "\t\tFade %s (%d, %d, %s)\n", actFadeValToString((*act).fade.id), (*act).fade.tovol, (*act).fade.flip, actValToString((*act).fade.ms, action.rightvaluetype)); // TODO: can fade use vars as input params? if so, WHAT exactly? ms or tovol? ASSUMING 'ms' since it has "right" type set and "left" is unset
@@ -914,7 +911,7 @@ int MPF_ExtractSamples(char* mpffilename, char* mustrackfilename, char* outparam
 
     // extract the sample files themselves
     // the sample offset list is always at the end of MPF (it has to be because it has no size descriptor)
-    
+
     if (index == -1)
     {
         // check for folder existence, if it doesn't exist, make it
@@ -958,14 +955,9 @@ int MPF_ExtractSamples(char* mpffilename, char* mustrackfilename, char* outparam
         {
             uint32_t size = 0;
             uint32_t magic = 0;
-            if (i == last_sample - 1)
-                size = st.st_size - sampleOffsets.at(i);
-            else
-                size = sampleOffsets.at(i + 1) - sampleOffsets.at(i);
 
             // get file extension
             fread(&magic, sizeof(uint32_t), 1, fmus);
-            fseek(fmus, sampleOffsets[i], SEEK_SET);
             SampleFileType ftype = GetSampleFileType(magic);
             const char* file_ext = SampleFileTypeStr[ftype];
 
@@ -973,6 +965,33 @@ int MPF_ExtractSamples(char* mpffilename, char* mustrackfilename, char* outparam
             {
                 cout << "Going into EALayer3 mode!\n";
                 bEALayer3Mode = true;
+
+                // get sample sizes from the header instead
+                uint32_t hdrcount = 0;
+                MUSHeaderInfo hi = { 0 };
+                fseek(fmus, 4, SEEK_SET);
+                fread(&hdrcount, sizeof(uint32_t), 1, fmus);
+                fseek(fmus, 0x28, SEEK_SET);
+
+                for (int j = 0; j < hdrcount; j++)
+                {
+                    fread(&hi, sizeof(MUSHeaderInfo), 1, fmus);
+                    sampleSizes.push_back(hi.DataSize);
+                }
+            }
+
+            fseek(fmus, sampleOffsets[i], SEEK_SET);
+
+            if (bEALayer3Mode)
+            {
+                size = sampleSizes.at(i);
+            }
+            else
+            {
+                if (i == last_sample - 1)
+                    size = st.st_size - sampleOffsets.at(i);
+                else
+                    size = sampleOffsets.at(i + 1) - sampleOffsets.at(i);
             }
 
             // open the new file
@@ -1003,7 +1022,7 @@ int MPF_ExtractSamples(char* mpffilename, char* mustrackfilename, char* outparam
                     fclose(f);
                 return -1;
             }
-            
+
             filebuf = malloc(size);
             if (filebuf)
             {
@@ -1097,7 +1116,7 @@ int MPF_ExtractSamples(char* mpffilename, char* mustrackfilename, char* outparam
 
     if (f)
         fclose(f);
-    
+
     return 0;
 }
 
@@ -3780,13 +3799,375 @@ int MPFCompiler(char* txtfilename, char* mpffilename)
     return 0;
 }
 
+//For saving actual PathEvent
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <iomanip>
+#include <tuple>
+//For saving actual PathEvent
+#include "crc24.h"
+
+//Calculator for appending the track -->BlueskyWestside
+// Function to perform Bitwise OR operation and return the result as Hex
+std::string PerformBitwiseOR(uint32_t mpfId, uint32_t eventId) {
+    uint32_t result = mpfId | eventId;
+    std::stringstream ss;
+    ss << std::uppercase << std::hex << result;
+    return ss.str();
+}
+uint32_t HexToDecimal(const std::string& hex) {
+    std::istringstream converter(hex);
+    uint32_t decimalNum;
+    converter >> std::hex >> decimalNum;
+    return decimalNum;
+}
+
+////Calculator for appending the track -->BlueskyWestside
+int CreateNFSMSCarbon(uint32_t TrackID, uint32_t AppendEventID) {
+    // Perform bitwise OR operation
+    std::string resultHex = PerformBitwiseOR(TrackID, AppendEventID);
+
+
+    std::ofstream outputFile("Script.nfsms", std::ios::out | std::ios::trunc);
+    if (!outputFile.is_open()) {
+        std::cerr << "Unable to open file for writing!" << std::endl;
+        return 1; // Return with error code
+    }
+
+    // Write the content into the file
+    outputFile << "copy_node music default default newtrack\n";
+    outputFile << "update_field music newtrack Album Value NewAlbum\n";
+    outputFile << "update_field music newtrack Artist Value NewArtist\n";
+    outputFile << "update_field music newtrack CarClass kRaceCar_ClassExotic\n";
+    outputFile << "update_field music newtrack DefPlay ePLAY_RACE\n";
+    outputFile << "update_field music newtrack PathEvent ";
+    
+
+    outputFile << HexToDecimal(resultHex) << "\n";
+    outputFile << "update_field music newtrack SongName Value NewSong\n";
+    outputFile << "resize_field audiosystem mwlicensedmusic PFMapping 31\n";
+    outputFile << "update_field audiosystem mwlicensedmusic PFMapping[30] ClassKey music\n";
+    outputFile << "update_field audiosystem mwlicensedmusic PFMapping[30] CollectionKey newtrack\n";
+
+    // Close the file stream
+    outputFile.close();
+
+    // Check if there was an error while writing
+    if (outputFile.fail()) {
+        std::cerr << "Error occurred while writing to file!" << std::endl;
+        return 1; // Return with error code
+    }
+
+    std::cout << "EventID saved to Script." << std::endl;
+
+    return 0;
+}
+
+int LastNodeIndex = 0;
+int LastPartIndex = 0;
+int LastWaveIndex = 0;
+int LastRouterIndex = 0;
+int LastSectionIndex = 0;
+char catOutLine[512];
+char catReadLine[512];
+char catOldFilename[512];
+char catNewFilename[512];
+
+
+int AppendSlot(const char* filename, string bGame, string bMusic, uint32_t TrackID = 0x11000001, uint32_t SectionID = 0)
+{
+    FILE* f = fopen(filename, "ab");
+    if (!f)
+    {
+        cout << "Can't open file [" << filename << "] for updating: " << strerror(errno) << '\n';
+        return -1;
+    }
+    else if (bGame != "carbon" && bMusic != "music")
+    {
+        cout << "ERROR: Wrong flags! Check -h for flags!" << '\n';
+        return -1;
+    }
+    else if (bGame != "carbon" && bMusic != "interative")
+    {
+        cout << "ERROR: Wrong flags! Check -h for flags!" << '\n';
+        return -1;
+    }
+    else if (bGame != "carbon" && bMusic != "cop")
+    {
+        cout << "ERROR: Wrong flags! Check -h for flags!" << '\n';
+        return -1;
+    }
+
+    int AppendNodeIndex = LastNodeIndex + 1;
+    int AppendPartIndex = LastPartIndex + 1;
+    int AppendWaveIndex = LastWaveIndex + 1;
+    uint32_t AppendEventID = 0;
+    char AppendName[64];
+
+    // generate an eventID using crc24
+    sprintf(AppendName, "PATH_EVENT_Sample%d", AppendWaveIndex);
+    AppendEventID = crc_octets((unsigned char*)AppendName, strlen(AppendName));
+
+    cout << "Appending EventID: [0x" << std::uppercase << std::hex << AppendEventID << "], Sample: [" << std::dec << AppendWaveIndex << "]\n";
+
+    // write out info
+    fprintf(f, "\n# Appended slot\n# EventID: 0x%08X\n# Sample: %d\n", AppendEventID, AppendWaveIndex);
+    // the entrance node
+    fprintf(f, "Node %d\n", AppendNodeIndex);
+    fputs("{\n", f);
+    fputs("\tWave 0\n", f);
+    fputs("\tTrack 0\n", f);
+    fputs("\tSection 1\n", f);
+    fprintf(f, "\tPart %d\n", AppendPartIndex);
+    fputs("\tRouter -1\n", f);
+    fputs("\tController 0\n", f);
+    fputs("\tBeats 1\n", f);
+    fputs("\tBars 1\n", f);
+    fputs("\tSynchEvery 0\n", f);
+    fputs("\tSynchOffset 0\n", f);
+    fputs("\tNotes 0\n", f);
+    fputs("\tSynch 0\n", f);
+    fputs("\tChannelBranching 0\n", f);
+    fputs("\tBranches\n", f);
+    fputs("\t{\n", f);
+    fprintf(f, "\t\tControl 0,127 > %d\n", AppendNodeIndex + 2);
+    fputs("\t}\n", f);
+    fputs("}\n", f);
+    // the ending node
+    fprintf(f, "Node %d\n", AppendNodeIndex + 1);
+    fputs("{\n", f);
+    fputs("\tWave -1\n", f);
+    fputs("\tTrack 0\n", f);
+    fputs("\tSection 1\n", f);
+    fprintf(f, "\tPart %d\n", AppendPartIndex + 1);
+    fputs("\tRouter -1\n", f);
+    fputs("\tController 0\n", f);
+    fputs("\tBeats 1\n", f);
+    fputs("\tBars 1\n", f);
+    fputs("\tSynchEvery 0\n", f);
+    fputs("\tSynchOffset 0\n", f);
+    fputs("\tNotes 0\n", f);
+    fputs("\tSynch 0\n", f);
+    fputs("\tChannelBranching 0\n", f);
+    fputs("\tRepeat 0\n", f);
+    fputs("}\n", f);
+    // the main node
+    fprintf(f, "Node %d\n", AppendNodeIndex + 2);
+    fputs("{\n", f);
+    fprintf(f, "\tWave %d\n", AppendWaveIndex);
+    fputs("\tTrack 0\n", f);
+    fputs("\tSection 1\n", f);
+    fprintf(f, "\tPart %d\n", AppendPartIndex + 1);
+    fputs("\tRouter -1\n", f);
+    fputs("\tController 0\n", f);
+    fputs("\tBeats 4\n", f);
+    fputs("\tBars 1\n", f);
+    fputs("\tSynchEvery 0\n", f);
+    fputs("\tSynchOffset 0\n", f);
+    fputs("\tNotes 4\n", f);
+    fputs("\tSynch 0\n", f);
+    fputs("\tChannelBranching 0\n", f);
+    fputs("\tBranches\n", f);
+    fputs("\t{\n", f);
+    fprintf(f, "\t\tControl 0,127 > %d\n", AppendNodeIndex + 1);
+    fputs("\t}\n", f);
+    fputs("}\n", f);
+    // event ID
+    fprintf(f, "Event 0x%08X\n", AppendEventID);
+    fputs("{\n", f);
+    fputs("\tActions\n", f);
+    fputs("\t{\n", f);
+    fprintf(f, "(0x%X, %d)\t\tBranch -1 (-1, -1)\n", TrackID, SectionID);
+    fprintf(f, "(0x%X, %d)\t\tBranch %d (-1, 0)\n", TrackID, SectionID, AppendNodeIndex);
+    fputs("\t}\n", f);
+    fputs("}\n", f);
+    fclose(f);
+
+    if (bGame == "carbon" && bMusic == "music")
+    {
+        CreateNFSMSCarbon(TrackID, AppendEventID);
+        return 0;
+    }
+    else if(bGame == "carbon" && bMusic == "interative")
+    {
+        CreateNFSMSCarbon(TrackID, AppendEventID);
+        return 0;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+
+
 // compiler stuff end
+
+#include <iostream>
+#include<string>
+#include <unordered_map>
+using namespace std;
+
+enum FileID {
+    CB_MUS_0 = 0x01000000,
+    CB_MUS_1 = 0x12000001,
+    CB_MUS_2 = 0x14000001,
+    CB_MUS_3 = 0x18000001
+};
+
+FileID getFileID(const std::string& filename) {
+    static const std::unordered_map<std::string, FileID> fileIDMap = {
+        {"cb_mus_0_decomp.txt", CB_MUS_0},
+        {"cb_mus_1_decomp.txt", CB_MUS_1},
+        {"cb_mus_2_decomp.txt", CB_MUS_2},
+        {"cb_mus_3_decomp.txt", CB_MUS_3}
+    };
+
+    auto it = fileIDMap.find(filename);
+    if (it != fileIDMap.end()) {
+        return it->second;
+    }
+    else {
+        // Handle the case when filename doesn't match any known pattern
+        return static_cast<FileID>(-1); // Or any other suitable value indicating error
+    }
+}
+
+int FindLastBits(const char* filename)
+{
+    FILE* f = fopen(filename, "rb");
+    if (!f)
+    {
+        cout << "Can't open file [" << filename << "] for reading: " << strerror(errno) << '\n';
+        return -1;
+    }
+
+
+    char param[32];
+    char* cursor;
+    int readNode = 0;
+    int readPart = 0;
+    int readWave = 0;
+    int readRouter = 0;
+    int readSection = 0;
+
+
+    while (!feof(f))
+    {
+        if (CompilerGetLine(f))
+        {
+            string ln(cmpReadLine);
+            if (ln.find("Node") != string::npos)
+            {
+                cursor = strchr(cmpReadLine, ' ') + 1;
+                if (!cursor)
+                {
+                    cout << "ERROR: can't parse node - incorrect formatting, missing space after Node token word, at line " << cmpCurLine << '\n';
+                    return -1;
+                }
+                strcpy(param, cursor);
+                cmpCleanUpToken(param);
+                if (bStringHasAlpha(param))
+                {
+                    cout << "ERROR: unknown token, found non-numeric char in token (expected only integers): [" << param << "] at line " << cmpCurLine << '\n';
+                    return -1;
+                }
+                readNode = stoi(param);
+                if (readNode > LastNodeIndex)
+                    LastNodeIndex = readNode;
+            }
+            if (ln.find("Router") != string::npos)
+            {
+                cursor = strchr(cmpReadLine, ' ') + 1;
+                if (!cursor)
+                {
+                    cout << "ERROR: can't parse router - incorrect formatting, missing space after router token word, at line " << cmpCurLine << '\n';
+                    return -1;
+                }
+                strcpy(param, cursor);
+                cmpCleanUpToken(param);
+                if (bStringHasAlpha(param))
+                {
+                    cout << "ERROR: unknown token, found non-numeric char in token (expected only integers): [" << param << "] at line " << cmpCurLine << '\n';
+                    return -1;
+                }
+                readRouter = stoi(param);
+                if (readRouter > LastRouterIndex)
+                    LastRouterIndex = readRouter;
+            }
+            if (ln.find("Part") != string::npos)
+            {
+                cursor = strchr(cmpReadLine, ' ') + 1;
+                if (!cursor)
+                {
+                    cout << "ERROR: can't parse part - incorrect formatting, missing space after Part token word, at line " << cmpCurLine << '\n';
+                    return -1;
+                }
+                strcpy(param, cursor);
+                cmpCleanUpToken(param);
+                if (bStringHasAlpha(param))
+                {
+                    cout << "ERROR: unknown token, found non-numeric char in token (expected only integers): [" << param << "] at line " << cmpCurLine << '\n';
+                    return -1;
+                }
+                readPart = stoi(param);
+                if (readPart > LastPartIndex)
+                    LastPartIndex = readPart;
+            }
+            if (ln.find("Section") != string::npos)
+            {
+                cursor = strchr(cmpReadLine, ' ') + 1;
+                if (!cursor)
+                {
+                    cout << "ERROR: can't parse section - incorrect formatting, missing space after Section token word, at line " << cmpCurLine << '\n';
+                    return -1;
+                }
+                strcpy(param, cursor);
+                cmpCleanUpToken(param);
+                if (bStringHasAlpha(param))
+                {
+                    cout << "ERROR: unknown token, found non-numeric char in token (expected only integers): [" << param << "] at line " << cmpCurLine << '\n';
+                    return -1;
+                }
+                readSection = stoi(param);
+                if (readSection > LastSectionIndex)
+                    LastSectionIndex = readSection;
+            }
+            if (ln.find("Wave") != string::npos)
+            {
+                cursor = strchr(cmpReadLine, ' ') + 1;
+                if (!cursor)
+                {
+                    cout << "ERROR: can't parse wave - incorrect formatting, missing space after Wave token word, at line " << cmpCurLine << '\n';
+                    return -1;
+                }
+                strcpy(param, cursor);
+                cmpCleanUpToken(param);
+                if (bStringHasAlpha(param))
+                {
+                    cout << "ERROR: unknown token, found non-numeric char in token (expected only integers): [" << param << "] at line " << cmpCurLine << '\n';
+                    return -1;
+                }
+                readWave = stoi(param);
+                if (readWave > LastWaveIndex)
+                    LastWaveIndex = readWave;
+            }
+        }
+        cmpCurLine++;
+    }
+
+    fclose(f);
+    return 0;
+}
+
+
 
 int main(int argc, char* argv[])
 {
     cout << "EA Pathfinder v5 MPF tool\n";
 
-    if (argc < 2)
+    if (argc >= 2 && strcmp(argv[1], "-h") == 0)
     {
         cout \
             << "USAGE (decompile MPF to TXT): " << argv[0] << " MPFfile [OutFile]\n" \
@@ -3803,8 +4184,59 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    if ((argv[1][0] == '-') && argv[1][1] == 'c')
+    //DecompileALL
+    else if (strcmp(argv[1], "-DecompileAll") == 0)
     {
+        if (argc < 4)
+        {
+            cout << "ERROR: not enough arguments for sample extraction!\n"\
+                << "USAGE (extract all samples): " << argv[0] << " -sa MPFfile MusTrackFile [OutSampleFolder]\n";
+            return -1;
+        }
+
+        if (argc < 5)
+        {
+            strcpy(OutPath, argv[3]);
+            char* extpoint = strrchr(OutPath, '.');
+            if (extpoint)
+                *extpoint = '\0';
+        }
+        else
+            strcpy(OutPath, argv[argc - 1]);
+
+
+        char OutPath2[100]; // Assuming OutPath is a character array
+
+        std::string TXTFile = argv[2];
+
+        // Find the position of the last dot character
+        size_t dotPos = TXTFile.find_last_of(".");
+
+        // If dot is found and it's not the first character
+        if (dotPos != std::string::npos && dotPos != 0) {
+            // Remove the extension
+            TXTFile = TXTFile.substr(0, dotPos);
+        }
+
+        // Now add "_decomp.txt" extension
+        TXTFile += "_decomp.txt";
+        cout << "Decompiling MPF to: " << TXTFile << '\n';
+
+        // Assuming argv[2] is the correct path to the file you want to process
+        strcpy(OutPath2, TXTFile.c_str());
+
+        int decompile = MPFtoTXT(argv[2], OutPath2);
+
+        cout << "Extracting all samples to: " << OutPath << '\n';
+
+        return MPF_ExtractSamples(argv[2], argv[3], OutPath, -1);
+    }
+
+    //CompileALL
+    else if (strcmp(argv[1], "-CompileAll") == 0 && argc == 6)
+    {
+        char OutPath[256]; // Assuming a maximum path length of 255 characters
+
         if (argc < 4)
         {
             strcpy(OutPath, argv[2]);
@@ -3814,97 +4246,97 @@ int main(int argc, char* argv[])
             strcat(OutPath, ".mpf");
         }
         else
-            strcpy(OutPath, argv[argc - 1]);
+            strcpy(OutPath, argv[3]);
+
         cout << "Compiling MPF source to: " << OutPath << '\n';
-        return MPFCompiler(argv[2], OutPath);
-    }
 
-    // sample actions
-    if ((argv[1][0] == '-') && argv[1][1] == 's')
-    {
-        // all samples
-        if (argv[1][2] == 'a')
+        int compileResult = MPFCompiler(argv[2], OutPath);
+        if (compileResult != 0)
         {
-            if (argc < 4)
-            {
-                cout << "ERROR: not enough arguments for sample extraction!\n"\
-                     << "USAGE (extract all samples): " << argv[0] << " -sa MPFfile MusTrackFile [OutSampleFolder]\n";
-                return -1;
-            }
-
-            if (argc < 5)
-            {
-                strcpy(OutPath, argv[3]);
-                char* extpoint = strrchr(OutPath, '.');
-                if (extpoint)
-                    *extpoint = '\0';
-            }
-            else
-                strcpy(OutPath, argv[argc - 1]);
-
-            cout << "Extracting all samples to: " << OutPath << '\n';
-
-            return MPF_ExtractSamples(argv[2], argv[3], OutPath, -1);
+            cout << "Error: MPF compilation failed with error code " << compileResult << '\n';
+            return compileResult;
         }
 
-        // update samples in MPF
-        if (argv[1][2] == 'x')
+        if (argc < 4)
         {
-            if (argc < 4)
-            {
-                cout << "ERROR: not enough arguments for sample updating!\n"\
-                     << "USAGE (update samples): " << argv[0] << " -C MPFfile SampleFolder\n";
-                return -1;
-            }
-
-            cout << "Updating samples in: " << argv[argc - 1] << '\n';
-
-            return MPF_UpdateSamplesCarbon(argv[2], argv[argc - 1]);
-        }
-        if (argv[1][2] == 'm')
-        {
-            if (argc < 4)
-            {
-                cout << "ERROR: not enough arguments for sample updating!\n"\
-                    << "USAGE (update samples): " << argv[0] << " -MW MPFfile SampleFolder\n";
-                return -1;
-            }
-
-            cout << "Updating samples in: " << argv[argc - 1] << '\n';
-
-            return MPF_UpdateSamplesMW(argv[2], argv[argc - 1]);
-        }
-
-        // sample by index
-        if (argc < 5)
-        {
-            cout << "ERROR: not enough arguments for sample extraction!\n"\
-                 << "USAGE (extract by sample num): " << argv[0] << " -s MPFfile MusTrackFile SampleNumber [OutSampleFile]\n";
+            cout << "ERROR: not enough arguments for sample updating!\n"
+                << "USAGE (update samples): " << argv[0] << " -C MPFfile SampleFolder\n";
             return -1;
         }
 
-        int si = stoi(argv[4]);
-        if (si <= 0)
-            si = 1;
+        cout << "Updating samples in: " << argv[argc - 1] << '\n';
 
-        if (argc < 6)
-            return MPF_ExtractSamples(argv[2], argv[3], NULL, si);
-        else
-            return MPF_ExtractSamples(argv[2], argv[3], argv[argc - 1], si);
+        return MPF_UpdateSamplesCarbon(argv[3], argv[5]);
     }
 
-    if (argc < 3)
+    //DecompileMPF
+    else if (strcmp(argv[1], "-DecompileMPF") == 0)
     {
-        strcpy(OutPath, argv[1]);
-        char* extpoint = strrchr(OutPath, '.');
-        if (extpoint)
-            *extpoint = '\0';
-        strcat(OutPath, "_decomp.txt");
+        char OutPath2[100]; // Assuming OutPath is a character array
+
+        std::string TXTFile = argv[2];
+
+        // Find the position of the last dot character
+        size_t dotPos = TXTFile.find_last_of(".");
+
+        // If dot is found and it's not the first character
+        if (dotPos != std::string::npos && dotPos != 0) {
+            // Remove the extension
+            TXTFile = TXTFile.substr(0, dotPos);
+        }
+
+        // Now add "_decomp.txt" extension
+        TXTFile += "_decomp.txt";
+        cout << "Decompiling MPF to: " << TXTFile << '\n';
+
+        // Assuming argv[2] is the correct path to the file you want to process
+        strcpy(OutPath2, TXTFile.c_str());
+
+        return MPFtoTXT(argv[2], OutPath2);
     }
-    else
-        strcpy(OutPath, argv[argc - 1]);
+    //Append New music!
+    else if (strcmp(argv[1], "-AppendMusic") == 0)
+    {
+        std::string filename = argv[4];
+        FileID fileID = getFileID(filename);
+        if (fileID == static_cast<FileID>(-1)) {
+            std::cout << "ERROR: Invalid filename!\n";
+            return -1;
+        }
 
-    cout << "Decompiling MPF to: " << OutPath << '\n';
+        uint32_t TrackID = static_cast<uint32_t>(fileID);
+        uint32_t SectionID = 0; // Assuming this is declared elsewhere in your code
 
-    return MPFtoTXT(argv[1], OutPath);
+
+        if (argc < 3)
+        {
+            cout << "ERROR: not enough arguments for appending!\n"\
+                << "USAGE (append a new slot): " << argv[0] << " -a[p] sourceMapFile [TrackID] [SectionID]\n";
+            return -1;
+        }
+
+        if (FindLastBits(argv[4]) < 0)
+        {
+            cout << "ERROR: Can't parse file during finding indicies for appending!\n";
+            return -1;
+        }
+        
+        if (argc > 5)
+        {
+            TrackID = stoul(argv[3], nullptr, 16);
+        }
+
+        if (argc > 7)
+        {
+            SectionID = stoul(argv[4]);
+        }
+
+        if (AppendSlot(argv[4], argv[2], argv[3], TrackID, SectionID) < 0)
+        {
+            cout << "ERROR: Can't append the slot!\n";
+            return -1;
+        }
+        return 0;
+    }
+
 }

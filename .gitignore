@@ -39,3 +39,7 @@ PathFinderTool/obj/Debug/net8.0/PathFinderTool.AssemblyInfo.cs
 *.cache
 PathFinderTool/obj/Debug/net8.0/.NETCoreApp,Version=v8.0.AssemblyAttributes.cs
 PathFinderTool/obj/Debug/net8.0/PathFinderTool.GlobalUsings.g.cs
+MPFmaster/x64/Debug/MPFmaster.tlog/MPFmaster.lastbuildstate
+MPFmaster/x64/Debug/MPFmaster.tlog/link.secondary.1.tlog
+MPFmaster/x64/Debug/MPFmaster.tlog/link.read.1.tlog
+MPFmaster/x64/Debug/MPFmaster.tlog/link.command.1.tlog
